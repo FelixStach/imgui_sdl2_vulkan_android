@@ -20,12 +20,19 @@ endif()
 # Make sure debug libs have the same name as release ones
 set(SDL_CMAKE_DEBUG_POSTFIX "" CACHE STRING "" FORCE)
 
-add_subdirectory(libraries/SDL2)
+add_subdirectory(libraries/SDL)
 
-# We need to copy the SDL2 Java files into our own project, this might need to be manually on SDL2 version change
-set(SDL_ACTIVITY_FOLDER app/src/main/java/org/libsdl/app/)
-file(REMOVE_RECURSE ${CMAKE_SOURCE_DIR}/android/${SDL_ACTIVITY_FOLDER})
-file(COPY libraries/SDL2/android-project/${SDL_ACTIVITY_FOLDER} DESTINATION ${CMAKE_SOURCE_DIR}/android/${SDL_ACTIVITY_FOLDER})
+# Force copy of SDL2 Java files to happen before target build
+set(SDL_ACTIVITY_FOLDER app/src/main/java/org/libsdl/app)
+set(SDL_SRC_DIR ${CMAKE_SOURCE_DIR}/libraries/SDL/android-project/${SDL_ACTIVITY_FOLDER})
+set(SDL_DST_DIR ${CMAKE_SOURCE_DIR}/android/${SDL_ACTIVITY_FOLDER})
+
+add_custom_target(copy_sdl_java_files ALL
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${SDL_DST_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${SDL_SRC_DIR} ${SDL_DST_DIR}
+    COMMENT "Force-copying SDL2 Java activity files every time"
+    VERBATIM
+)
 
 include_directories(
   libraries/imgui
@@ -54,3 +61,5 @@ target_link_libraries( ${PROJECT_NAME}
   SDL2
   Vulkan::Vulkan
 )
+
+add_dependencies(${PROJECT_NAME} copy_sdl_java_files)
