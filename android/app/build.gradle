@@ -17,12 +17,19 @@ android {
         release {
             minifyEnabled false
         }
+        debug {
+            externalNativeBuild {
+                cmake {
+                    cppFlags "-D_DEBUG"  // Define _DEBUG in Debug builds
+                }
+            }
+        }
     }
 
     externalNativeBuild {
         cmake {
             path "../../CMakeLists.txt"
-            version '3.22.1'
+            version '3.30.3'
         }
     }
 

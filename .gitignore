@@ -22,5 +22,6 @@ android/app/local.properties
 android/app/release
 android/app/src/main/assets
 android/app/src/main/java/org/libsdl/app
+android/app/src/main/jniLibs
 android/keystore.properties
 andorid/local.properties

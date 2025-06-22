@@ -55,7 +55,7 @@ There are 2 good ways to build the Android App.
   ```bash
   ./gradlew assembleDebug
   ```
-  on Linux / Mac. This will also launch the build process. On Windows there is a batch file called `buildAndLaunchAndroid.bat`. Make sure that you have a [debugging-enabled](https://developer.android.com/studio/debug/dev-options) Android device conncted, do
+  on Linux / Mac. This will also launch the build process. On Windows there is a batch file called `buildAndLaunchAndroid.bat`. Make sure that you have a [debugging-enabled](https://developer.android.com/studio/debug/dev-options) Android device connected, do
   ```bash
   adb devices
   ```
@@ -75,10 +75,61 @@ There are 2 good ways to build the Android App.
 
 The provided Cmake Setup should also work for Desktop compilation. Make sure that you have a modern compiler installed. The easiest way to build the Dektop version is to use *VS Code* with the *Cmake Tools* Extension, which will let you compile and launch the Executable from the *VS Code* Interface ('launch the selected target in the terminal window' Button in the bottom bar) 
 
-Something went wrong?
----------------------
+Vulkan Validation Layers
+------------------------
 
-- Before the Android App is compiled, some SDL Java files need to be copied to android/app/src/main/java/org/libsdl/app (9 files at this time). Make sure these files are copied there. Look into CMakeLists.txt for more details.
+Vulkan Validation Layers are a great way to find out where things break. This project bundles precompiled Android Validation Layers into the package (see **libraries/Vulkan-ValidationLayers/README.md**) and defines the **_DEBUG** macro for debug builds, therefore enabling validation layers. Minimal code manipulation must happen in order for the validation layers to actually be useful.
+
+ 1. Find the ImGui main.cpp inside **libraries/imgui/examples/example_sdl2_vulkan/main.cpp** (make sure submodules are loaded) where you will find this section:
+
+```cpp
+#ifdef APP_USE_VULKAN_DEBUG_REPORT
+static VKAPI_ATTR VkBool32 VKAPI_CALL debug_report(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
+{
+    (void)flags; (void)object; (void)location; (void)messageCode; (void)pUserData; (void)pLayerPrefix; // Unused arguments
+    fprintf(stderr, "[vulkan] Debug report from ObjectType: %i\nMessage: %s\n\n", objectType, pMessage);
+    return VK_FALSE;
+}
+#endif // APP_USE_VULKAN_DEBUG_REPORT
+```
+
+fprint(), the default function for printing strings to the terminal, does not actually print the string into the observable Android log, which you can observe using
+
+```bash
+adb logcat 
+```
+
+In order for these messages to show up, replace the above code with
+
+```cpp
+#ifdef APP_USE_VULKAN_DEBUG_REPORT
+
+// Only include Android specific code when compiling for Android
+#ifdef ANDROID
+#include <android/log.h>  // Required for __android_log_print
+#include <unistd.h>  // For sleep function
+#endif
+
+static VKAPI_ATTR VkBool32 VKAPI_CALL debug_report(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage, void* pUserData)
+{
+    (void)flags; (void)object; (void)location; (void)messageCode; (void)pUserData; (void)pLayerPrefix; // Unused arguments
+
+    // Print to stderr for non-Android platforms
+    fprintf(stderr, "[vulkan] Debug report from ObjectType: %i\nMessage: %s\n\n", objectType, pMessage);
+
+    // Log to Android logcat ONLY on Android platform
+    #ifdef ANDROID
+    __android_log_print(ANDROID_LOG_ERROR, "VulkanValidation", "[Vulkan] %s: %s", pLayerPrefix, pMessage);
+    // Wait for a brief moment to ensure messages are sent to logcat
+    sleep(2);  // Wait for 2 seconds (can be adjusted)
+    #endif
+
+    return VK_FALSE;
+}
+#endif // APP_USE_VULKAN_DEBUG_REPORT 
+```
+
+This will make sure that the message show up on Desktop and Android.
 
 Android App tested on
 ---------------------

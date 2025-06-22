@@ -1,5 +1,4 @@
-cmake_minimum_required(VERSION 3.14.7 FATAL_ERROR)
-cmake_policy(VERSION 3.14.7...3.28.1)
+cmake_minimum_required(VERSION 3.30.3 FATAL_ERROR)
 
 set(PROJECT_NAME imgui_sdl2_vulkan_android)
 project(${PROJECT_NAME})
@@ -34,11 +33,25 @@ add_custom_target(copy_sdl_java_files ALL
     VERBATIM
 )
 
+# Vulkan Validation Layers Setup
+set(VK_VAL_LAYER_SRC_DIR ${CMAKE_SOURCE_DIR}/libraries/Vulkan-ValidationLayers)
+set(VK_VAL_LAYER_DST_DIR ${CMAKE_SOURCE_DIR}/android/app/src/main/jniLibs)
+
+# Force copy of Vulkan validation layer files to happen before target build
+add_custom_target(copy_vulkan_validation_layers ALL
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${VK_VAL_LAYER_DST_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${VK_VAL_LAYER_SRC_DIR} ${VK_VAL_LAYER_DST_DIR}
+    COMMENT "Force-copying Vulkan validation layers every time"
+    VERBATIM
+)
+
+# Include directories for ImGui
 include_directories(
   libraries/imgui
   libraries/imgui/backends
 )
 
+# Set source files
 set(SOURCE_FILES
   libraries/imgui/imgui.cpp
   libraries/imgui/imgui_demo.cpp
@@ -50,16 +63,27 @@ set(SOURCE_FILES
   libraries/imgui/examples/example_sdl2_vulkan/main.cpp
 )
 
-# build a shared library for Android, or an executable for other platforms
+# Build a shared library for Android, or an executable for other platforms
 if(ANDROID)
     add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 else()
     add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 endif()
 
-target_link_libraries( ${PROJECT_NAME}
+# Link libraries
+target_link_libraries(${PROJECT_NAME}
   SDL2
   Vulkan::Vulkan
 )
 
-add_dependencies(${PROJECT_NAME} copy_sdl_java_files)
+# Link the Android log library ONLY if building for Android
+if(ANDROID)
+    target_link_libraries(${PROJECT_NAME} log)
+endif()
+
+# Ensure the copy of SDL2 Java files and Vulkan validation layers happen before build
+add_dependencies(${PROJECT_NAME}
+  copy_sdl_java_files
+  copy_vulkan_validation_layers
+)
+
