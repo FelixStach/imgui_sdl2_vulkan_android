@@ -18,6 +18,8 @@ android {
             minifyEnabled false
         }
         debug {
+            debuggable true
+            minifyEnabled false
             externalNativeBuild {
                 cmake {
                     cppFlags "-D_DEBUG"  // Define _DEBUG in Debug builds
